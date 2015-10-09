@@ -85,7 +85,6 @@ void printRpmStatus()
 }
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
   pinMode(DRIVEPIN, OUTPUT);
   analogWrite(DRIVEPIN, 0);
@@ -95,7 +94,6 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
     now = millis();
     if (now - lastmillis > 1000) { 
       lastmillis = now;
