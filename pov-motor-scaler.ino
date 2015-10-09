@@ -26,9 +26,10 @@ float lastmillis = 0.0;
 
 float rpm = 0.0;
 
+// http://www.massmind.org/Techref/io/sensor/interface.htm
 void average(int sample)
 {
-  avg -= (avg>>4);  // output result is 1/16th of accumulator   // subtract l/16th of the accumulator
+  avg -= (avg>>4);   // output result is 1/16th of accumulator   // subtract l/16th of the accumulator
   avg += sample;     // add in the new sample  
 }
 
