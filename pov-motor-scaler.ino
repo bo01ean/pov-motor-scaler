@@ -1,4 +1,9 @@
-#include <stdarg.h>
+/*
+https://github.com/FastLED/FastLED/wiki/SPI-Hardware-or-Bit-banging
+Teensy 3/3.1:
+Hardware SPI - data 11, clock 13
+Hardware SPI - data 7, clock 14
+*/
 
 unsigned int power = 160;
 unsigned int maxPower = 110;
@@ -82,7 +87,7 @@ void printRpmStatus()
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  pinMode(DRIVEPIN, OUTPUT);  
+  pinMode(DRIVEPIN, OUTPUT);
   analogWrite(DRIVEPIN, 0);
   pinMode(HALLPIN, INPUT);
   setupHallSensor();
@@ -92,7 +97,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
     now = millis();
-    if (now - lastmillis > 1000){ //Update every one second, this will be equal to reading frecuency (Hz).
+    if (now - lastmillis > 1000) { 
       lastmillis = now;
       rpm = (60 * avg) / 1000;
       printRpmStatus();
