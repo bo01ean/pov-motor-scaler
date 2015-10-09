@@ -32,7 +32,7 @@ float lastmillis = 0.0;
 
 
 // http://www.massmind.org/Techref/io/sensor/interface.htm
-void average(int sample)
+void average(int sample) // sample is in ms
 {
   avg -= (avg>>4);   // output result is 1/16th of accumulator   // subtract l/16th of the accumulator
   avg += sample;     // add in the new sample  
@@ -97,7 +97,7 @@ void loop() {
     now = millis();
     if (now - lastmillis > 1000) { 
       lastmillis = now;
-      rpm = (60 * avg) / 1000;
+      rpm = (60 / avg) * 1000;// (60/B2)*1000
       printRpmStatus();
       //printPowerStatus();
       rpmcount = 0;
