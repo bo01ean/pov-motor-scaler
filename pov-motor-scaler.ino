@@ -5,8 +5,9 @@ Hardware SPI - data 11, clock 13
 Hardware SPI - data 7, clock 14
 */
 
-unsigned int power = 160;
-unsigned int maxPower = 110;
+int power = 115;
+int maxPower = 120;
+int motorInit = 115;
 
 float maxVoltage = 2.2;
 float voltage = 0.0;
@@ -18,6 +19,8 @@ const unsigned int HALLPIN = 21;
 const unsigned int BUTTONPORT = 5;
 const unsigned int TARGETRPM = 120;
 const unsigned int ACCELFACTOR = 1;
+
+const float SYSTEMVOLTAGE = 3.3;
 
 volatile int avg = 1;
 volatile int rpmcount = 0;
@@ -90,11 +93,12 @@ void setup() {
   analogWrite(DRIVEPIN, 0);
   pinMode(HALLPIN, INPUT);
   setupHallSensor();
-  analogWrite(DRIVEPIN, 115);
+  analogWrite(DRIVEPIN, motorInit);
 }
 
 void loop() {
     now = millis();
+    
     if (now - lastmillis > 1000) { 
       lastmillis = now;
       rpm = (60 / avg) * 1000;// (60/B2)*1000
@@ -103,4 +107,37 @@ void loop() {
       rpmcount = 0;
     }
 }
+
+
+void accelerate()
+{
+  ascending = 1;
+  signalMotor();
+}
+
+void decelerate()
+{
+  ascending = -1;
+  signalMotor();  
+}
+
+void signalMotor()
+{
+  power += (ascending * ACCELFACTOR);
+  checkRange();
+  analogWrite(DRIVEPIN, (int) power);
+}
+
+void checkRange()
+{    
+    power = constrain(power, motorInit, maxPower);
+    voltage = constrain(voltage, 0, maxVoltage);
+}
+
+float powerToVolts(float p)
+{
+  return (p/255) * SYSTEMVOLTAGE;// p >> 8
+}
+
+
 
