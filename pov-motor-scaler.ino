@@ -12,10 +12,11 @@ const unsigned int DRIVEPIN = 20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
 const unsigned int TARGETRPM = 120;
+const unsigned int ACCELFACTOR = 1;
 
-int ACCELFACTOR = 1;
 volatile int avg = 1;
 volatile int rpmcount = 0;
+volatile float rpm = 0.0;
 
 volatile float current = 0.0;
 volatile float last = 0.0;
@@ -24,7 +25,6 @@ float now = 0.0;
 float innerNow = 0.0;
 float lastmillis = 0.0;
 
-float rpm = 0.0;
 
 // http://www.massmind.org/Techref/io/sensor/interface.htm
 void average(int sample)
@@ -41,8 +41,8 @@ void setupHallSensor()
   delay(3000);
   attachInterrupt(HALLPIN, interruptHandler, FALLING);
   Serial.println("Go!");
-  rpmcount = 0;
-  rpm = 0;
+  rpmcount = 0.0;
+  rpm = 0.0;
 }
 
 void interruptHandler()
@@ -53,31 +53,21 @@ void interruptHandler()
     last = millis();
 }
 
-void printStatus()
+
+void printPowerStatus()
 {
-/******
--- RPM not funtional
--- 1.8 too HIGH!
--- glue the bottom part?
-*******/
+    Serial.print(" Power: ");    
+    Serial.print(power);
 
+    Serial.print(" Voltage: ");    
+    Serial.print(voltage);
 
-    //Serial.print("Time Old:");
-    //Serial.println(timeold);
-  
-    //Serial.print("Rpm Count:");
-    //Serial.println(rpmcount);  
-  
- //   Serial.print(" Power: ");    
- //   Serial.print(power);
+    Serial.print(" Max Voltage: ");    
+    Serial.println(maxVoltage);
+}
 
-//    Serial.print(" Voltage: ");    
-//    Serial.print(voltage);
-
-//    Serial.print(" Max Voltage: ");    
-//    Serial.print(maxVoltage);
-
-
+void printRpmStatus()
+{
     Serial.print(" AVG RPM: ");    
     Serial.print(avg);
     
@@ -105,7 +95,8 @@ void loop() {
     if (now - lastmillis > 1000){ //Update every one second, this will be equal to reading frecuency (Hz).
       lastmillis = now;
       rpm = (60 * avg) / 1000;
-      printStatus();
+      printRpmStatus();
+      //printPowerStatus();
       rpmcount = 0;
     }
 }
