@@ -5,21 +5,28 @@ Hardware SPI - data 11, clock 13
 Hardware SPI - data 7, clock 14
 */
 
+//Define Variables we'll be connecting to
+double gap;
+
+//Define the aggressive and conservative Tuning Parameters
+  
 int power = 0;
-int maxPower = 120;
-const int motorInit = 103;
+const int maxPower = 120;
+const int motorInit = 101;
 
 float maxVoltage = 2.2;
 float voltage = 0.0;
 
 signed int ascending = 1;
 
-const int avgFactor = 32;
+const int avgFactor = 16;
+
+boolean cango = false;
 
 const unsigned int DRIVEPIN = 20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
-const unsigned int TARGETRPM = 120;
+const unsigned int TARGETRPM = 500;
 const unsigned int ACCELFACTOR = 1;
 
 const float RCDIFF = 0.128;
@@ -29,6 +36,9 @@ const float SYSTEMVOLTAGE = 3.3;// TEENSY 3.3v ARDUINO 5v
 float avg = 0.1;
 volatile int rpmcount = 0;
 volatile float rpm = 0.1;
+
+const int smoothCyclesLimit = 3;
+int smoothCyclesIterator = 0;
 
 volatile int current = 0;
 volatile int last = 0;
@@ -61,12 +71,10 @@ void setupHallSensor()
 void interruptHandler()
 { 
     rpmcount++;
-    //innerNow = millis();
-    //Serial.print("Current: ");
-    //Serial.println(current);
     current = now - last;
     average(current);
     last = millis();
+    Serial.println("TICK!!!");
 }
 
 
@@ -84,6 +92,9 @@ void printPowerStatus()
 
 void printRpmStatus()
 {
+    Serial.print(" gap: " );
+    Serial.print(gap);
+    
     Serial.print(" AVG RPM: ");    
     Serial.print(valueToRpm(avg) * 16);
     
@@ -103,24 +114,53 @@ void setup() {
   setupHallSensor();
   power = motorInit;
   Serial.println(power);
-  analogWrite(DRIVEPIN, power);
+  analogWrite(DRIVEPIN, power);  
 }
 
 void loop() {
-    now = millis();
-    if (now - lastmillis > 1000) { 
-      lastmillis = now;      
-      rpm = valueToRpm(current);
-      voltage = powerToVolts(power);
-      //Serial.println(rpm);
-      printPowerStatus();
-      printRpmStatus();
-      rpmcount = 0;
+  now = millis();
+//  if(cango 
+//  && (now - lastmillis) > 100) {
+//    if(gap < (TARGETRPM / 20)) {
+//      decelerate();
+//    }
+//    if(gap > (TARGETRPM / 20)) {
+//      accelerate();
+//    }    
+//  }
+  if (now - lastmillis > 1000) { 
+    cango = true;
+    lastmillis = now;      
+    rpm = valueToRpm(current);
+    current = 0;
+    voltage = powerToVolts(power);
+    //Serial.println(rpm);
+    printPowerStatus();
+    printRpmStatus();
+    rpmcount = 0;
+          
+    gap = TARGETRPM - rpm; //distance away from TARGETRPM    
+
+    if(smoothCyclesLimit == smoothCyclesIterator) {
+      if(gap < (TARGETRPM / 20)) {
+        decelerate();
+      }
+      if(gap > (TARGETRPM / 20)) {
+        accelerate();
+      }        
+      smoothCyclesIterator = 0;
+    } else {
+      smoothCyclesIterator++;
     }
+    
+  }
 }
 
 float valueToRpm(float value)
 {
+  if(value == 0) {
+    return 0;
+  }
   return (60.0 / value) * 1000.0;// (60/B2)*1000
 }
 
