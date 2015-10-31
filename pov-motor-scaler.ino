@@ -11,10 +11,10 @@ double gap;
 //Define the aggressive and conservative Tuning Parameters
   
 int power = 0;
-const int maxPower = 120;
+const int maxPower = 130;
 const int motorInit = 101;
 
-float maxVoltage = 2.2;
+float maxVoltage = 2.4;
 float voltage = 0.0;
 
 signed int ascending = 1;
@@ -74,35 +74,35 @@ void interruptHandler()
     current = now - last;
     average(current);
     last = millis();
-    Serial.println("TICK!!!");
+    //Serial.println("TICK!!!");
 }
 
 
 void printPowerStatus()
 {
-    Serial.print(" Power: ");    
-    Serial.print(power);
+    //Serial.print(" Power: ");    
+    //Serial.print(power);
 
-    Serial.print(" Voltage: ");    
-    Serial.print(voltage);
+//    Serial.print(" Voltage: ");    
+//    Serial.print(voltage);
 
-    Serial.print(" Max Voltage: ");    
-    Serial.print(maxVoltage);
+//    Serial.print(" Max Voltage: ");    
+//    Serial.print(maxVoltage);
 }
 
 void printRpmStatus()
 {
-    Serial.print(" gap: " );
-    Serial.print(gap);
+    //Serial.print(" gap: " );
+    //Serial.print(gap);
     
-    Serial.print(" AVG RPM: ");    
-    Serial.print(valueToRpm(avg) * 16);
+    //Serial.print(" AVG RPM: ");    
+    Serial.println(valueToRpm(avg) * 16);
     
-    Serial.print(" Hz: ");    
-    Serial.print(rpmcount);
+    //Serial.print(" Hz: ");    
+    //Serial.print(rpmcount);
 
-    Serial.print(" RPM: ");
-    Serial.println(rpm);
+    //Serial.print(" RPM: ");
+    //Serial.println(rpm);
     
 }
 
