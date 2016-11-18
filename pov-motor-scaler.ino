@@ -11,6 +11,11 @@ double gap;
 
 elapsedMicros timeSinceMagnet;
 
+elapsedMicros displayTimer;
+
+volatile uint32_t periodDuration = 0;
+
+
 //Define the aggressive and conservative Tuning Parameters
   
 int power = 0;
@@ -27,13 +32,15 @@ boolean cango = false;
 const unsigned int DRIVEPIN = 20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
-const unsigned int TARGETRPM = 500;
+const unsigned int TARGETRPM = 700;
 const unsigned int ACCELFACTOR = 1;
 
 const float RCDIFF = 0.128;
 
 const float SYSTEMVOLTAGE = TEENSY_SYS;// TEENSY 3.3v ARDUINO 5v
 
+
+int tmp = 0;
 const int avgFactor = 16;
 float avg = 0.1;
 volatile float rpm = 0.0;
@@ -62,8 +69,10 @@ void setupHallSensor()
 
 void interruptHandler()
 {   
-    rpm = rpmFromMicros();    
+    periodDuration = timeSinceMagnet;
     timeSinceMagnet = 0;
+    rpm = rpmFromMicros(periodDuration);    
+    
 }
 
 
@@ -82,15 +91,21 @@ void printPowerStatus()
 void printRpmStatus()
 {
     
-    Serial.print(" AVG RPM: "); 
-    Serial.print(avg);   
+    //Serial.print(" AVG RPM: "); 
+    //Serial.print(avg);   
 
-    Serial.print(" HZ: ");
-    Serial.print(rpm/60);
+    Serial.print(" GAP: "); 
+    Serial.print(gap);   
+
+    //Serial.print(" HZ: ");
+    //Serial.print(rpm/60);
     
     Serial.print(" RPM: ");
-    Serial.println(rpm);
-        
+    Serial.print(rpm);
+
+    Serial.print(" HZ: ");
+    Serial.println(1000000.0 / periodDuration);
+    
 }
 
 void setup() {
@@ -103,7 +118,9 @@ void setup() {
   analogWrite(DRIVEPIN, power);  
 }
 
+
 void loop() {
+  
 //  if(cango 
 //  && (now - lastmillis) > 100) {
 //    if(gap < (TARGETRPM / 20)) {
@@ -113,7 +130,8 @@ void loop() {
 //      accelerate();
 //    }    
 //  }
-  if (timeSinceMagnet >= 1000000) { // 1 sec intervals
+  if (displayTimer >= 1000000) { // 1 sec intervals
+    displayTimer = 0;
     average(rpm); 
     cango = true;    
     voltage = powerToVolts(power);
@@ -132,7 +150,6 @@ void loop() {
     } else {
       smoothCyclesIterator++;
     }
-    
   }
 }
 
@@ -161,6 +178,6 @@ float powerToVolts(float p) {
   return (p/255) * SYSTEMVOLTAGE + RCDIFF;// p >> 8
 }
 
-float rpmFromMicros(void) {
-  return (1000000 / timeSinceMagnet) / 60;
+float rpmFromMicros(uint32_t in) {
+  return (1000000.0 / in) * 60;
 }
