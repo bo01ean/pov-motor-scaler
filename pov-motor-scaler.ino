@@ -3,11 +3,15 @@ https://github.com/FastLED/FastLED/wiki/SPI-Hardware-or-Bit-banging Teensy 3/3.1
 Hardware SPI - data 11, clock 13
 Hardware SPI - data 7, clock 14
 */
+#include <PID_v1.h>
+
+
+
 
 #define TEENSY_SYS 3.3
 #define ARDUINO_SYS 5
 //Define Variables we'll be connecting to
-float gap = 0.0;
+volatile float gap = 0.0;
 
 elapsedMicros timeSinceMagnet;
 
@@ -47,6 +51,17 @@ volatile float rpm = 0.0;
 
 const int smoothCyclesLimit = 3;
 int smoothCyclesIterator = 0;
+
+
+
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+double ggap;
+//Define the aggressive and conservative Tuning Parameters
+double aggKp=4, aggKi=0.2, aggKd=1;
+double consKp=1, consKi=0.05, consKd=0.25;
+PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
+
 
 // http://www.massmind.org/Techref/io/sensor/interface.htm
 void average(float sample) { // sample is in ms
@@ -91,6 +106,10 @@ void printRpmStatus() {
     Serial.print(" GAP: "); 
     Serial.print(gap);   
     
+    Serial.print(" GGAP: "); 
+    Serial.print(ggap);
+
+    
     Serial.print(" RPM: ");
     Serial.print(rpm);
 
@@ -104,8 +123,10 @@ void printRpmStatus() {
     Serial.print(power);
 
     Serial.print(" Voltage: ");    
-    Serial.println(voltage);
+    Serial.print(voltage);
 
+    Serial.print(" Output: ");    
+    Serial.println(Output);
 
 }
 
@@ -117,10 +138,16 @@ void setup() {
   power = motorInit;
   Serial.println(power);
   analogWrite(DRIVEPIN, power);  
+
+
+    Setpoint = TARGETRPM;
+    myPID.SetMode(AUTOMATIC);
 }
 
 
 void loop() {
+
+  Input = rpm;
   if (displayTimer >= 1000000) { // 1 sec intervals
     displayTimer = 0;
     average(rpm); 
@@ -142,6 +169,17 @@ void loop() {
       smoothCyclesIterator++;
     }
   }
+
+  ggap = abs(Setpoint-rpm); //distance away from setpoint
+  if (ggap < 10)
+  {  //we're close to setpoint, use conservative tuning parameters
+    myPID.SetTunings(consKp, consKi, consKd);
+  } else {
+     //we're far from setpoint, use aggressive tuning parameters
+     myPID.SetTunings(aggKp, aggKi, aggKd);
+  }
+
+  myPID.Compute();
 }
 
 void accelerate() {
