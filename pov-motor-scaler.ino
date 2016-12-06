@@ -5,26 +5,23 @@ Hardware SPI - data 7, clock 14
 */
 #include <PID_v1.h>
 
-
-
-
 #define TEENSY_SYS 3.3
 #define ARDUINO_SYS 5
 //Define Variables we'll be connecting to
 volatile float gap = 0.0;
 
 elapsedMicros timeSinceMagnet;
-
 elapsedMicros displayTimer;
 
-volatile uint32_t periodDuration = 0;
+volatile uint32_t periodDuration = 1;
 
 
 //Define the aggressive and conservative Tuning Parameters
   
 float power = 0.0;
-const int maxPower = 140;
-const int motorInit = 101;
+const int maxPower = 2097;
+int motorInit;
+
 
 float maxVoltage = 2.8;
 float voltage = 0.0;
@@ -33,20 +30,25 @@ signed int ascending = 1;
 
 boolean cango = false;
 
-const unsigned int DRIVEPIN = 20;
+const unsigned int DRIVEPIN = A6;//20;//A6;//20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
 const float TARGETRPM = 700.0;
-const unsigned int ACCELFACTOR = 1;
+const unsigned int ACCELFACTOR = 1 << 1;
 
 const float RCDIFF = 0.128;
 
 const float SYSTEMVOLTAGE = TEENSY_SYS;// TEENSY 3.3v ARDUINO 5v
 
+const int ANALOG_PRECISION_BITS = 12;// 4096
 
 int tmp = 0;
 const int avgFactor = 16;
 float avg = 0.1;
+
+#define filterSamples   16              // filterSamples should  be an odd number, no smaller than 3
+int rpmSmooth[filterSamples];   // array for holding raw sensor values for sensor1 
+int smoothRpm;
 volatile float rpm = 0.0;
 
 const int smoothCyclesLimit = 3;
@@ -84,21 +86,10 @@ void interruptHandler() {
     periodDuration = timeSinceMagnet;
     timeSinceMagnet = 0;
     rpm = rpmFromMicros(periodDuration);
+    smoothRpm = digitalSmooth(rpm, rpmSmooth);
 }
 
-
-void printPowerStatus() {
-//    Serial.print(" Power: ");    
-//    Serial.print(power);
-
-//    Serial.print(" Voltage: ");    
-//    Serial.print(voltage);
-
-//    Serial.print(" Max Voltage: ");    
-//    Serial.print(maxVoltage);
-}
-
-void printRpmStatus() {
+void printStatus() {
     
     Serial.print(" TARGETRPM: "); 
     Serial.print(TARGETRPM);   
@@ -112,6 +103,9 @@ void printRpmStatus() {
     
     Serial.print(" RPM: ");
     Serial.print(rpm);
+
+    Serial.print(" (smoothed): ");
+    Serial.print(smoothRpm);
 
     Serial.print(" HZ: ");
     Serial.print(1000000.0 / periodDuration);
@@ -132,6 +126,11 @@ void printRpmStatus() {
 
 void setup() {
   Serial.begin(9600);
+
+  motorInit = map(101, 0, (1 << 8) - 1, 0, (1 << ANALOG_PRECISION_BITS) - 1);
+
+  analogWriteResolution(ANALOG_PRECISION_BITS);
+  
   pinMode(DRIVEPIN, OUTPUT);
   analogWrite(DRIVEPIN, 0);
   setupHallSensor();
@@ -148,15 +147,17 @@ void setup() {
 void loop() {
 
   Input = rpm;
-  if (displayTimer >= 1000000) { // 1 sec intervals
+  if (displayTimer >= 500000) { // 1 sec intervals
     displayTimer = 0;
     average(rpm); 
     cango = true;    
+    
+    gap = TARGETRPM - rpm; //distance away from TARGETRPM  
+    ggap = abs(Setpoint-rpm); //distance away from setpoint
+  
     voltage = powerToVolts(power);
-    printPowerStatus();
-    printRpmStatus();          
-    gap = TARGETRPM - rpm; //distance away from TARGETRPM    
-
+    printStatus();          
+  
     if (smoothCyclesLimit == smoothCyclesIterator) {
       if (gap < TARGETRPM) {
         accelerate();
@@ -168,9 +169,10 @@ void loop() {
     } else {
       smoothCyclesIterator++;
     }
+    
   }
-
-  ggap = abs(Setpoint-rpm); //distance away from setpoint
+  
+  
   if (ggap < 10)
   {  //we're close to setpoint, use conservative tuning parameters
     myPID.SetTunings(consKp, consKi, consKd);
@@ -204,9 +206,59 @@ void checkRange() {
 }
 
 float powerToVolts(float p) {
-  return (p/255) * SYSTEMVOLTAGE + RCDIFF;// p >> 8
+  return (p/4096) * SYSTEMVOLTAGE + RCDIFF;// p >> 8
 }
 
 float rpmFromMicros(uint32_t in) {
   return (1000000.0 / in) * 60;
 }
+
+int digitalSmooth(int rawIn, int *sensSmoothArray){     // "int *sensSmoothArray" passes an array to the function - the asterisk indicates the array name is a pointer
+  int j, k, temp, top, bottom;
+  long total;
+  static int i;
+  static int sorted[filterSamples];
+  boolean done;
+
+  i = (i + 1) % filterSamples;    // increment counter and roll over if necc. -  % (modulo operator) rolls over variable
+  sensSmoothArray[i] = rawIn;                 // input new data into the oldest slot
+
+  // Serial.print("raw = ");
+
+  for (j=0; j<filterSamples; j++){     // transfer data array into anther array for sorting and averaging
+    sorted[j] = sensSmoothArray[j];
+  }
+
+  done = 0;                // flag to know when we're done sorting              
+  while(done != 1) {        // simple swap sort, sorts numbers from lowest to highest
+    done = 1;
+    for (j = 0; j < (filterSamples - 1); j++){
+      if (sorted[j] > sorted[j + 1]) {     // numbers are out of order - swap
+        temp = sorted[j + 1];
+        sorted [j+1] =  sorted[j] ;
+        sorted [j] = temp;
+        done = 0;
+      }
+    }
+  }
+
+  // throw out top and bottom 15% of samples - limit to throw out at least one from top and bottom
+  bottom = max(((filterSamples * 15)  / 100), 1); 
+  top = min((((filterSamples * 85) / 100) + 1  ), (filterSamples - 1));   // the + 1 is to make up for asymmetry caused by integer rounding
+  k = 0;
+  total = 0;
+  for ( j = bottom; j< top; j++) {
+    total += sorted[j];  // total remaining indices
+    k++; 
+    // Serial.print(sorted[j]); 
+    // Serial.print("   "); 
+  }
+
+//  Serial.println();
+//  Serial.print("average = ");
+//  Serial.println(total/k);
+  return total / k;    // divide by number of samples
+}
+
+
+
