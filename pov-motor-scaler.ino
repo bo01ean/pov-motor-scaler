@@ -34,7 +34,7 @@ const unsigned int DRIVEPIN = A6;//20;//A6;//20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
 const float TARGETRPM = 700.0;
-const unsigned int ACCELFACTOR = 1 << 1;
+const unsigned int ACCELFACTOR = 1 << 4;
 
 const float RCDIFF = 0.128;
 
