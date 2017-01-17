@@ -19,7 +19,7 @@ volatile uint32_t periodDuration = 1;
 //Define the aggressive and conservative Tuning Parameters
   
 float power = 0.0;
-const int maxPower = 2097;
+const int maxPower = 2600;
 int motorInit;
 
 
@@ -33,7 +33,7 @@ boolean cango = false;
 const unsigned int DRIVEPIN = A6;//20;//A6;//20;
 const unsigned int HALLPIN = 21; 
 const unsigned int BUTTONPORT = 5;
-const float TARGETRPM = 700.0;
+const float TARGETRPM = 100.0;
 const unsigned int ACCELFACTOR = 1 << 5;
 
 const float RCDIFF = 0.128;
@@ -206,7 +206,7 @@ void checkRange() {
 }
 
 float powerToVolts(float p) {
-  return (p/4096) * SYSTEMVOLTAGE + RCDIFF;// p >> 8
+  return (p/4096) * SYSTEMVOLTAGE;// + RCDIFF;// p >> 8
 }
 
 float rpmFromMicros(uint32_t in) {
