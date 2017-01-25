@@ -1,28 +1,22 @@
-/*
-https://github.com/FastLED/FastLED/wiki/SPI-Hardware-or-Bit-banging Teensy 3/3.1:
-Hardware SPI - data 11, clock 13
-Hardware SPI - data 7, clock 14
-*/
-#include <PID_v1.h>
+//#if defined (__arm__) && defined (__SAM3X8E__) // Arduino Due compatible*/
+#include "teensyTimers.h"
+//#endif
 
 #define TEENSY_SYS 3.3
 #define ARDUINO_SYS 5
-//Define Variables we'll be connecting to
-volatile float gap = 0.0;
+
+volatile float gap = 0.0; 
+
+float power = 0.0;
+const int maxPower = 2600;
+int motorInit;
 
 elapsedMicros timeSinceMagnet;
 elapsedMicros displayTimer;
 
 volatile uint32_t periodDuration = 1;
-
-
 //Define the aggressive and conservative Tuning Parameters
   
-float power = 0.0;
-const int maxPower = 2600;
-int motorInit;
-
-
 float maxVoltage = 2.8;
 float voltage = 0.0;
 
@@ -30,11 +24,10 @@ signed int ascending = 1;
 
 boolean cango = false;
 
-const unsigned int DRIVEPIN = A6;//20;//A6;//20;
-const unsigned int HALLPIN = 21; 
-const unsigned int BUTTONPORT = 5;
+const unsigned int DRIVEPIN = 0; // A6
+const unsigned int HALLPIN = 1; // 21 
 const float TARGETRPM = 100.0;
-const unsigned int ACCELFACTOR = 1 << 5;
+const unsigned int ACCELFACTOR = 1 << 3;
 
 const float RCDIFF = 0.128;
 
@@ -51,19 +44,8 @@ int rpmSmooth[filterSamples];   // array for holding raw sensor values for senso
 int smoothRpm;
 volatile float rpm = 0.0;
 
-const int smoothCyclesLimit = 3;
-int smoothCyclesIterator = 0;
-
-
-
-//Define Variables we'll be connecting to
-double Setpoint, Input, Output;
-double ggap;
-//Define the aggressive and conservative Tuning Parameters
-double aggKp=4, aggKi=0.2, aggKd=1;
-double consKp=1, consKi=0.05, consKd=0.25;
-PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
-
+const int smoothCyclesLimit = 1;
+int smoothCyclesIterator = 1;
 
 // http://www.massmind.org/Techref/io/sensor/interface.htm
 void average(float sample) { // sample is in ms
@@ -76,10 +58,10 @@ void setupHallSensor() {
   pinMode(HALLPIN, INPUT);
   digitalWrite(HALLPIN, HIGH);
   delay(2000);
-  Serial.println("Hall Setup.");  
+  //Serial.println("Hall Setup.");  
   delay(2000);
   attachInterrupt(HALLPIN, interruptHandler, RISING);
-  Serial.println("Go!");
+  //Serial.println("Go!");
 }
 
 void interruptHandler() {   
@@ -90,7 +72,7 @@ void interruptHandler() {
 }
 
 void printStatus() {
-    
+/*    
     Serial.print(" TARGETRPM: "); 
     Serial.print(TARGETRPM);   
 
@@ -121,39 +103,34 @@ void printStatus() {
 
     Serial.print(" Output: ");    
     Serial.println(Output);
-
+*/
 }
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   motorInit = map(101, 0, (1 << 8) - 1, 0, (1 << ANALOG_PRECISION_BITS) - 1);
 
-  analogWriteResolution(ANALOG_PRECISION_BITS);
+  //analogWriteResolution(ANALOG_PRECISION_BITS);
   
   pinMode(DRIVEPIN, OUTPUT);
   analogWrite(DRIVEPIN, 0);
   setupHallSensor();
   power = motorInit;
-  Serial.println(power);
+  //Serial.println(power);
   analogWrite(DRIVEPIN, power);  
 
-
-    Setpoint = TARGETRPM;
-    myPID.SetMode(AUTOMATIC);
 }
 
 
 void loop() {
 
-  Input = rpm;
   if (displayTimer >= 500000) { // 1 sec intervals
     displayTimer = 0;
     average(rpm); 
     cango = true;    
     
     gap = TARGETRPM - rpm; //distance away from TARGETRPM  
-    ggap = abs(Setpoint-rpm); //distance away from setpoint
   
     voltage = powerToVolts(power);
     printStatus();          
@@ -168,20 +145,8 @@ void loop() {
       smoothCyclesIterator = 0;
     } else {
       smoothCyclesIterator++;
-    }
-    
+    }    
   }
-  
-  
-  if (ggap < 10)
-  {  //we're close to setpoint, use conservative tuning parameters
-    myPID.SetTunings(consKp, consKi, consKd);
-  } else {
-     //we're far from setpoint, use aggressive tuning parameters
-     myPID.SetTunings(aggKp, aggKi, aggKd);
-  }
-
-  myPID.Compute();
 }
 
 void accelerate() {
